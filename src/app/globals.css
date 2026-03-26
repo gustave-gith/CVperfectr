@@ -23,9 +23,7 @@
     display: none !important;
   }
   .fit-one-page {
-    transform: scale(var(--cv-scale, 1));
-    transform-origin: top left;
-    width: calc(100% / var(--cv-scale, 1));
+    transform-origin: top left !important;
   }
   [contenteditable] {
     outline: none !important;

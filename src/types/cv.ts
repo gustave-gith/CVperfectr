@@ -24,6 +24,7 @@ export interface CvData {
   education: Education[];
   skills: string[];
   languages: string[];
+  locale?: string;
 }
 
 export interface OptimizeResponse {

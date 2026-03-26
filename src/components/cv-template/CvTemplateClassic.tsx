@@ -1,7 +1,8 @@
 'use client';
 
-import { forwardRef, useEffect } from 'react';
+import React, { forwardRef, useEffect, useRef, useCallback } from 'react';
 import { CvData, Experience, Education } from '@/types/cv';
+import { getLabels } from '@/lib/cvLabels';
 
 interface CvTemplateProps {
   data: CvData;
@@ -42,18 +43,43 @@ function EditableText({
 
 export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
   ({ data, className = '', fitOnePage = false, isEditing = false, onUpdate }, ref) => {
-    
+    const labels = getLabels(data.locale);
+
+    const internalRef = useRef<HTMLDivElement>(null);
+
+    const setRefs = useCallback(
+      (node: HTMLDivElement | null) => {
+        internalRef.current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      },
+      [ref]
+    );
+
     useEffect(() => {
-      if (!fitOnePage) return;
-      const el = document.getElementById('cv-template-classic');
+      const el = internalRef.current;
       if (!el) return;
+
+      if (!fitOnePage) {
+        el.style.removeProperty('--cv-scale');
+        el.style.removeProperty('transform');
+        el.style.removeProperty('transformOrigin');
+        el.style.removeProperty('width');
+        return;
+      }
+
       requestAnimationFrame(() => {
-        const height = el.scrollHeight;
-        if (!height || height === 0) return;
-        const scale = Math.min(1, 842 / height);
-        if (scale > 0 && scale <= 1) {
-          el.style.setProperty('--cv-scale', String(scale));
-        }
+        requestAnimationFrame(() => {
+          const height = el.scrollHeight;
+          if (!height || height === 0) return;
+          const scale = Math.min(1, 842 / height);
+          if (scale > 0) {
+            el.style.setProperty('--cv-scale', String(scale));
+            el.style.transform = `scale(${scale})`;
+            el.style.transformOrigin = 'top left';
+            el.style.width = `${100 / scale}%`;
+          }
+        });
       });
     }, [fitOnePage, data]);
 
@@ -90,7 +116,7 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
 
     return (
       <div
-        ref={ref}
+        ref={setRefs}
         id="cv-template-classic"
         className={`bg-white text-gray-900 max-w-3xl mx-auto p-12 print:p-8 print:max-w-none print:shadow-none ${className} ${fitOnePage ? 'fit-one-page' : ''}`}
         style={{ fontFamily: 'Georgia, serif' }}
@@ -114,7 +140,7 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         {data.summary && (
           <section className="mb-8">
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
-              Professional Summary
+              {labels.summary}
             </h2>
             <EditableText
               tag="p"
@@ -129,7 +155,7 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         {data.experience?.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
-              Experience
+              {labels.experience}
             </h2>
             <div className="space-y-6">
               {data.experience.map((exp, i) => (
@@ -145,7 +171,7 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
                     <span className="text-sm italic text-gray-500 whitespace-nowrap">
                       <EditableText value={exp.startDate} onChange={(val) => handleEdit('experience', val, i, 'startDate')} isEditing={isEditing} />
                       {' – '}
-                      <EditableText value={exp.endDate} onChange={(val) => handleEdit('experience', val, i, 'endDate')} isEditing={isEditing} />
+                      <EditableText value={exp.endDate === 'Present' ? labels.present : exp.endDate} onChange={(val) => handleEdit('experience', val, i, 'endDate')} isEditing={isEditing} />
                     </span>
                   </div>
                   <EditableText
@@ -179,7 +205,7 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         {data.education?.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
-              Education
+              {labels.education}
             </h2>
             <div className="space-y-4">
               {data.education.map((edu, i) => (
@@ -210,7 +236,7 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         {data.skills?.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
-              Skills
+              {labels.skills}
             </h2>
             <p className="text-sm text-gray-800 leading-relaxed space-x-2">
               {data.skills.map((skill, i) => (
@@ -230,7 +256,7 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         {data.languages?.length > 0 && (
           <section className="mb-8">
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
-              Languages
+              {labels.languages}
             </h2>
             <p className="text-sm text-gray-800 space-x-2">
               {data.languages.map((lang, i) => (
