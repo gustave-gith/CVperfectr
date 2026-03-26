@@ -6,7 +6,6 @@ import { UploadForm } from '@/components/upload-form/UploadForm';
 import { 
   CvTemplate,
   CvTemplateClassic,
-  CvTemplateModern,
   CvTemplateExecutive,
   TemplateSwitcher
 } from '@/components/cv-template';
@@ -21,6 +20,7 @@ export default function HomePage() {
   const cvRef = useRef<HTMLDivElement>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('default');
   const [fitOnePage, setFitOnePage] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const handlePrint = useReactToPrint({
     contentRef: cvRef,
@@ -110,12 +110,25 @@ export default function HomePage() {
                 <p className="text-gray-500 text-sm mt-1">
                   Review the content below, then download as PDF
                 </p>
+                {isEditing && (
+                  <p className="text-xs text-blue-600 mt-2 print:hidden">
+                    ✏️ Click any text on the CV to edit it. 
+                    Click "Done editing" when finished.
+                  </p>
+                )}
               </div>
-              <div className="flex gap-3">
-                <Button variant="secondary" onClick={handleReset}>
+              <div className="flex items-center gap-3">
+                <Button variant="secondary" size="sm" onClick={handleReset}>
                   ← Start over
                 </Button>
-                <Button size="lg" onClick={() => handlePrint()}>
+                <Button
+                  variant={isEditing ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? '✅ Done editing' : '✏️ Edit CV'}
+                </Button>
+                <Button size="sm" onClick={() => handlePrint()}>
                   ↓ Download as PDF
                 </Button>
               </div>
@@ -139,16 +152,13 @@ export default function HomePage() {
                 return (
                   <div ref={cvRef} className={templateWrapperClass}>
                     {selectedTemplate === 'default' && (
-                      <CvTemplate data={cvData!} />
+                      <CvTemplate data={cvData!} isEditing={isEditing} onUpdate={(updated) => setCvData(updated)} />
                     )}
                     {selectedTemplate === 'classic' && (
-                      <CvTemplateClassic data={cvData!} />
-                    )}
-                    {selectedTemplate === 'modern' && (
-                      <CvTemplateModern data={cvData!} />
+                      <CvTemplateClassic data={cvData!} isEditing={isEditing} onUpdate={(updated) => setCvData(updated)} />
                     )}
                     {selectedTemplate === 'executive' && (
-                      <CvTemplateExecutive data={cvData!} />
+                      <CvTemplateExecutive data={cvData!} isEditing={isEditing} onUpdate={(updated) => setCvData(updated)} />
                     )}
                   </div>
                 );

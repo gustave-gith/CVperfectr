@@ -1,30 +1,92 @@
 'use client';
 
 import { forwardRef, useEffect } from 'react';
-import { CvData } from '@/types/cv';
+import { CvData, Experience, Education } from '@/types/cv';
 
 interface CvTemplateProps {
   data: CvData;
-  className?: string; // Add className prop for scaling support
+  className?: string;
   fitOnePage?: boolean;
+  isEditing?: boolean;
+  onUpdate?: (data: CvData) => void;
+}
+
+function EditableText({
+  value,
+  onChange,
+  isEditing,
+  className = '',
+  tag: Tag = 'span',
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  isEditing: boolean;
+  className?: string;
+  tag?: any;
+}) {
+  return (
+    <Tag
+      contentEditable={isEditing}
+      suppressContentEditableWarning
+      onBlur={(e: any) => onChange(e.currentTarget.textContent || '')}
+      className={`${className} ${
+        isEditing
+          ? 'outline-dashed outline-2 outline-blue-300 rounded cursor-text focus:outline-blue-500 focus:outline-solid px-0.5 inline-block'
+          : ''
+      }`}
+    >
+      {value}
+    </Tag>
+  );
 }
 
 export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
-  ({ data, className = '', fitOnePage = false }, ref) => {
+  ({ data, className = '', fitOnePage = false, isEditing = false, onUpdate }, ref) => {
+    
     useEffect(() => {
       if (!fitOnePage) return;
       const el = document.getElementById('cv-template-classic');
       if (!el) return;
-      // Wait for full paint before measuring
       requestAnimationFrame(() => {
         const height = el.scrollHeight;
-        if (!height || height === 0) return; // guard against 0
+        if (!height || height === 0) return;
         const scale = Math.min(1, 842 / height);
         if (scale > 0 && scale <= 1) {
           el.style.setProperty('--cv-scale', String(scale));
         }
       });
-    }, [fitOnePage]);
+    }, [fitOnePage, data]);
+
+    const handleEdit = (
+      field: keyof CvData,
+      value: string,
+      index?: number,
+      subField?: string,
+      bulletIndex?: number
+    ) => {
+      if (!onUpdate) return;
+      const updated = { ...data };
+      if (index !== undefined && subField && bulletIndex !== undefined) {
+        const arr = [...(updated[field] as Experience[])];
+        const item = { ...arr[index] };
+        const bullets = [...item.bullets];
+        bullets[bulletIndex] = value;
+        item.bullets = bullets;
+        arr[index] = item;
+        (updated[field] as Experience[]) = arr;
+      } else if (index !== undefined && subField) {
+        const arr = [...(updated[field] as any[])];
+        arr[index] = { ...arr[index], [subField]: value };
+        (updated[field] as any[]) = arr;
+      } else if (index !== undefined) {
+        const arr = [...(updated[field] as string[])];
+        arr[index] = value;
+        (updated[field] as string[]) = arr;
+      } else {
+        (updated[field] as any) = value;
+      }
+      onUpdate(updated);
+    };
 
     return (
       <div
@@ -34,14 +96,18 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         style={{ fontFamily: 'Georgia, serif' }}
       >
         <header className="mb-8">
-          <h1 className="text-4xl font-bold uppercase tracking-[0.15em] mb-4 text-[#1a1a2e] print:text-black">
-            {data.name}
-          </h1>
+          <EditableText
+            tag="h1"
+            value={data.name}
+            onChange={(val) => handleEdit('name', val)}
+            isEditing={isEditing}
+            className="text-4xl font-bold uppercase tracking-[0.15em] mb-4 text-[#1a1a2e] print:text-black block"
+          />
           <div className="flex flex-wrap gap-4 text-sm text-gray-700">
-            {data.email && <span>{data.email}</span>}
-            {data.phone && <span>{data.phone}</span>}
-            {data.location && <span>{data.location}</span>}
-            {data.linkedin && <span>{data.linkedin}</span>}
+            {data.email && <EditableText value={data.email} onChange={(val) => handleEdit('email', val)} isEditing={isEditing} />}
+            {data.phone && <EditableText value={data.phone} onChange={(val) => handleEdit('phone', val)} isEditing={isEditing} />}
+            {data.location && <EditableText value={data.location} onChange={(val) => handleEdit('location', val)} isEditing={isEditing} />}
+            {data.linkedin && <EditableText value={data.linkedin} onChange={(val) => handleEdit('linkedin', val)} isEditing={isEditing} />}
           </div>
         </header>
 
@@ -50,7 +116,13 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
               Professional Summary
             </h2>
-            <p className="text-sm leading-relaxed text-gray-800">{data.summary}</p>
+            <EditableText
+              tag="p"
+              value={data.summary}
+              onChange={(val) => handleEdit('summary', val)}
+              isEditing={isEditing}
+              className="text-sm leading-relaxed text-gray-800 block"
+            />
           </section>
         )}
 
@@ -63,16 +135,37 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
               {data.experience.map((exp, i) => (
                 <div key={i}>
                   <div className="flex justify-between items-baseline mb-1">
-                    <h3 className="font-bold text-gray-900 text-base">{exp.role}</h3>
-                    <span className="text-sm italic text-gray-500">{exp.startDate} – {exp.endDate}</span>
+                    <EditableText
+                      tag="h3"
+                      value={exp.role}
+                      onChange={(val) => handleEdit('experience', val, i, 'role')}
+                      isEditing={isEditing}
+                      className="font-bold text-gray-900 text-base block"
+                    />
+                    <span className="text-sm italic text-gray-500 whitespace-nowrap">
+                      <EditableText value={exp.startDate} onChange={(val) => handleEdit('experience', val, i, 'startDate')} isEditing={isEditing} />
+                      {' – '}
+                      <EditableText value={exp.endDate} onChange={(val) => handleEdit('experience', val, i, 'endDate')} isEditing={isEditing} />
+                    </span>
                   </div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">{exp.company}</div>
+                  <EditableText
+                    value={exp.company}
+                    onChange={(val) => handleEdit('experience', val, i, 'company')}
+                    isEditing={isEditing}
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  />
                   {exp.bullets?.length > 0 && (
                     <ul className="space-y-1.5">
                       {exp.bullets.map((bullet, j) => (
-                        <li key={j} className="text-sm text-gray-800 flex gap-3">
+                        <li key={j} className="text-sm text-gray-800 flex gap-3 items-start">
                           <span className="text-gray-400 shrink-0">—</span>
-                          <span>{bullet}</span>
+                          <EditableText
+                            tag="span"
+                            value={bullet}
+                            onChange={(val) => handleEdit('experience', val, i, 'bullets', j)}
+                            isEditing={isEditing}
+                            className="block w-full"
+                          />
                         </li>
                       ))}
                     </ul>
@@ -92,12 +185,22 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
               {data.education.map((edu, i) => (
                 <div key={i} className="flex justify-between items-baseline">
                   <div>
-                    <h3 className="font-bold text-gray-900 text-sm">{edu.institution}</h3>
+                    <EditableText
+                      tag="h3"
+                      value={edu.institution}
+                      onChange={(val) => handleEdit('education', val, i, 'institution')}
+                      isEditing={isEditing}
+                      className="font-bold text-gray-900 text-sm block"
+                    />
                     <div className="text-sm text-gray-700">
-                      {edu.degree}{edu.field ? ` in ${edu.field}` : ''}
+                      <EditableText value={edu.degree} onChange={(val) => handleEdit('education', val, i, 'degree')} isEditing={isEditing} />
+                      {edu.field ? ' in ' : ''}
+                      {edu.field ? <EditableText value={edu.field} onChange={(val) => handleEdit('education', val, i, 'field')} isEditing={isEditing} /> : null}
                     </div>
                   </div>
-                  <span className="text-sm italic text-gray-500">{edu.graduationYear}</span>
+                  <span className="text-sm italic text-gray-500 whitespace-nowrap">
+                    <EditableText value={edu.graduationYear} onChange={(val) => handleEdit('education', val, i, 'graduationYear')} isEditing={isEditing} />
+                  </span>
                 </div>
               ))}
             </div>
@@ -109,8 +212,17 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
               Skills
             </h2>
-            <p className="text-sm text-gray-800 leading-relaxed">
-              {data.skills.join('  —  ')}
+            <p className="text-sm text-gray-800 leading-relaxed space-x-2">
+              {data.skills.map((skill, i) => (
+                <span key={i}>
+                  <EditableText
+                    value={skill}
+                    onChange={(val) => handleEdit('skills', val, i)}
+                    isEditing={isEditing}
+                  />
+                  {i < data.skills.length - 1 ? '  —  ' : ''}
+                </span>
+              ))}
             </p>
           </section>
         )}
@@ -120,8 +232,17 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
               Languages
             </h2>
-            <p className="text-sm text-gray-800">
-              {data.languages.join('  —  ')}
+            <p className="text-sm text-gray-800 space-x-2">
+              {data.languages.map((lang, i) => (
+                <span key={i}>
+                  <EditableText
+                    value={lang}
+                    onChange={(val) => handleEdit('languages', val, i)}
+                    isEditing={isEditing}
+                  />
+                  {i < data.languages.length - 1 ? '  —  ' : ''}
+                </span>
+              ))}
             </p>
           </section>
         )}

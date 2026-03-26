@@ -32,7 +32,7 @@ export interface OptimizeResponse {
   error?: string;
 }
 
-export type TemplateId = 'default' | 'classic' | 'modern' | 'executive';
+export type TemplateId = 'default' | 'classic' | 'executive';
 
 export const TEMPLATE_OPTIONS = [
   {
@@ -48,13 +48,6 @@ export const TEMPLATE_OPTIONS = [
     tagline: 'Timeless executive style',
     bestFor: 'Finance · Law · Consulting',
     accent: '#1a1a2e',
-  },
-  {
-    id: 'modern' as TemplateId,
-    name: 'Modern',
-    tagline: 'Clean and minimal',
-    bestFor: 'Tech · Product · Startups',
-    accent: '#4F46E5',
   },
   {
     id: 'executive' as TemplateId,
