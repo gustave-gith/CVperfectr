@@ -293,7 +293,6 @@ export async function optimizeCvWithGemini(
   language: string = 'English'
 ): Promise<CvData> {
   const apiKey = process.env.GEMINI_API_KEY;
-  console.log({ apiKey });
   if (!apiKey) throw new Error('GEMINI_API_KEY environment variable is not set');
 
   const userMessage = `
@@ -336,7 +335,6 @@ Return only the JSON object.`;
       body: JSON.stringify(body)
     });
 
-    console.log(response)
     if (!response.ok) {
       const errorText = await response.text();
       let gracefulError = errorText;

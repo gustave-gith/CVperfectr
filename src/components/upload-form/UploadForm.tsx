@@ -52,6 +52,18 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
         body: formData,
       });
 
+      // Handle common Vercel/Network errors before parsing JSON
+      if (response.status === 504) {
+        throw new Error('The request timed out. This often happens on Vercel Hobby tier when the AI takes more than 10 seconds. Try a shorter CV or job description.');
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response received:', text);
+        throw new Error(`Server returned an unexpected response (${response.status}). This may be a deployment issue.`);
+      }
+
       const result = await response.json();
 
       if (!result.success) {
@@ -88,10 +100,10 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
           className={`
             relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
             transition-all duration-200
-            ${isDragging 
-              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' 
-              : pdfFile 
-                ? 'border-green-400 bg-green-50 dark:bg-green-900/20' 
+            ${isDragging
+              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+              : pdfFile
+                ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
                 : 'border-gray-300 dark:border-gray-700 hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }
           `}
@@ -155,9 +167,9 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
           placeholder="Paste the complete job description here. Include requirements, responsibilities, and any keywords you see. The more detail you provide, the better the AI can optimize your CV."
           rows={8}
           className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-sm text-gray-800 dark:text-gray-200 
-                     placeholder:text-gray-400 dark:placeholder:text-gray-500 dark:bg-gray-900 focus:outline-none focus:ring-2 
-                     focus:ring-indigo-500 focus:border-transparent resize-none
-                     transition-shadow duration-200"
+                   placeholder:text-gray-400 dark:placeholder:text-gray-500 dark:bg-gray-900 focus:outline-none focus:ring-2 
+                   focus:ring-indigo-500 focus:border-transparent resize-none
+                   transition-shadow duration-200"
         />
         <p className="mt-1 text-xs text-gray-400">
           {jobDescription.length} characters
