@@ -48,7 +48,8 @@ OUTPUT FORMAT — return exactly this structure:
 
 export async function optimizeCvWithGemini(
   cvText: string,
-  jobDescription: string
+  jobDescription: string,
+  language: string = 'English'
 ): Promise<CvData> {
   const apiKey = process.env.GEMINI_API_KEY;
   console.log({ apiKey });
@@ -62,6 +63,7 @@ TARGET JOB DESCRIPTION:
 ${jobDescription}
 
 Optimize this CV for the job description following all rules above. 
+CRITICAL LANGUAGE RULE: You MUST write and translate ALL generated output text strictly in ${language}.
 Return only the JSON object.`;
 
   // Use the native system_instruction structure required by Gemini API

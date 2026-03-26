@@ -4,11 +4,16 @@
   body * {
     visibility: hidden;
   }
-  #cv-template,
-  #cv-template * {
+  #cv-template, #cv-template *,
+  #cv-template-classic, #cv-template-classic *,
+  #cv-template-modern, #cv-template-modern *,
+  #cv-template-executive, #cv-template-executive * {
     visibility: visible;
   }
-  #cv-template {
+  #cv-template,
+  #cv-template-classic,
+  #cv-template-modern,
+  #cv-template-executive {
     position: absolute;
     left: 0;
     top: 0;
@@ -16,5 +21,10 @@
   }
   .print-hidden {
     display: none !important;
+  }
+  .fit-one-page {
+    transform: scale(var(--cv-scale, 1));
+    transform-origin: top left;
+    width: calc(100% / var(--cv-scale, 1));
   }
 }

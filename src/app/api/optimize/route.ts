@@ -10,6 +10,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<OptimizeR
     const formData = await request.formData();
     const pdfFile = formData.get('pdf') as File | null;
     const jobDescription = formData.get('jobDescription') as string | null;
+    const language = (formData.get('language') as string) || 'English';
 
     if (!pdfFile) {
       return NextResponse.json(
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<OptimizeR
     }
 
     // Step 2: Send to Gemini
-    const optimizedCv = await optimizeCvWithGemini(cvText, jobDescription.trim());
+    const optimizedCv = await optimizeCvWithGemini(cvText, jobDescription.trim(), language);
 
     return NextResponse.json({ success: true, data: optimizedCv });
 

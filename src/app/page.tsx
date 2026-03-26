@@ -3,9 +3,15 @@
 import { useState, useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { UploadForm } from '@/components/upload-form/UploadForm';
-import { CvTemplate } from '@/components/cv-template';
+import { 
+  CvTemplate,
+  CvTemplateClassic,
+  CvTemplateModern,
+  CvTemplateExecutive,
+  TemplateSwitcher
+} from '@/components/cv-template';
 import { Button } from '@/components/ui/Button';
-import { CvData } from '@/types/cv';
+import { CvData, TemplateId } from '@/types/cv';
 
 type AppState = 'idle' | 'result';
 
@@ -13,6 +19,8 @@ export default function HomePage() {
   const [appState, setAppState] = useState<AppState>('idle');
   const [cvData, setCvData] = useState<CvData | null>(null);
   const cvRef = useRef<HTMLDivElement>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('default');
+  const [fitOnePage, setFitOnePage] = useState(false);
 
   const handlePrint = useReactToPrint({
     contentRef: cvRef,
@@ -113,9 +121,38 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Template Switcher */}
+            <TemplateSwitcher
+              selected={selectedTemplate}
+              onSelect={setSelectedTemplate}
+              fitOnePage={fitOnePage}
+              onFitOnePageChange={setFitOnePage}
+            />
+
             {/* CV Preview Card */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-              <CvTemplate ref={cvRef} data={cvData!} />
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden relative">
+              {(() => {
+                const templateWrapperClass = fitOnePage 
+                  ? 'print:text-[10.5px] print:[&_*]:leading-tight' 
+                  : '';
+
+                return (
+                  <div ref={cvRef} className={templateWrapperClass}>
+                    {selectedTemplate === 'default' && (
+                      <CvTemplate data={cvData!} />
+                    )}
+                    {selectedTemplate === 'classic' && (
+                      <CvTemplateClassic data={cvData!} />
+                    )}
+                    {selectedTemplate === 'modern' && (
+                      <CvTemplateModern data={cvData!} />
+                    )}
+                    {selectedTemplate === 'executive' && (
+                      <CvTemplateExecutive data={cvData!} />
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}

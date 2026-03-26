@@ -13,6 +13,7 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState('');
+  const [language, setLanguage] = useState('English');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -44,6 +45,7 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
       const formData = new FormData();
       formData.append('pdf', pdfFile);
       formData.append('jobDescription', jobDescription);
+      formData.append('language', language);
 
       const response = await fetch('/api/optimize', {
         method: 'POST',
@@ -63,6 +65,9 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
       setIsLoading(false);
     }
   };
+
+  // Prevent server/client DOM hydration mismatch by ensuring it renders completely clientside
+  if (!isMounted) return null;
 
   if (isLoading) {
     return <Spinner message="Analyzing your CV with AI... this takes 10-20 seconds" />;
@@ -119,6 +124,21 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Target Language Select */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          CV Output Language
+        </label>
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow duration-200 bg-white"
+        >
+          <option value="English">🇬🇧 English</option>
+          <option value="French">🇫🇷 French / Français</option>
+        </select>
       </div>
 
       {/* Job Description Textarea */}
