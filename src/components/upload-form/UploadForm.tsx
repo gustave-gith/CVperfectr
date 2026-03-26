@@ -77,7 +77,7 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* PDF Drop Zone */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Your CV (PDF only)
         </label>
         <div
@@ -89,10 +89,10 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
             relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
             transition-all duration-200
             ${isDragging 
-              ? 'border-indigo-500 bg-indigo-50' 
+              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' 
               : pdfFile 
-                ? 'border-green-400 bg-green-50' 
-                : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+                ? 'border-green-400 bg-green-50 dark:bg-green-900/20' 
+                : 'border-gray-300 dark:border-gray-700 hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }
           `}
         >
@@ -109,15 +109,15 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
           {pdfFile ? (
             <div className="space-y-1">
               <div className="text-3xl">✅</div>
-              <p className="font-medium text-green-700">{pdfFile.name}</p>
-              <p className="text-xs text-green-600">
+              <p className="font-medium text-green-700 dark:text-green-400">{pdfFile.name}</p>
+              <p className="text-xs text-green-600 dark:text-green-500">
                 {(pdfFile.size / 1024).toFixed(0)} KB — Click to change
               </p>
             </div>
           ) : (
             <div className="space-y-2">
               <div className="text-3xl text-gray-400">📄</div>
-              <p className="text-gray-600 font-medium">
+              <p className="text-gray-600 dark:text-gray-300 font-medium">
                 Drop your CV here, or click to browse
               </p>
               <p className="text-xs text-gray-400">PDF files only, max 5MB</p>
@@ -128,13 +128,13 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
 
       {/* Target Language Select */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           CV Output Language
         </label>
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow duration-200 bg-white"
+          className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow duration-200 bg-white dark:bg-gray-900"
         >
           <option value="English">🇬🇧 English</option>
           <option value="French">🇫🇷 French / Français</option>
@@ -143,7 +143,7 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
 
       {/* Job Description Textarea */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Job Description
           <span className="ml-1 text-xs text-gray-400 font-normal">
             (paste the full job posting)
@@ -154,8 +154,8 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
           onChange={(e) => setJobDescription(e.target.value)}
           placeholder="Paste the complete job description here. Include requirements, responsibilities, and any keywords you see. The more detail you provide, the better the AI can optimize your CV."
           rows={8}
-          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 
-                     placeholder:text-gray-400 focus:outline-none focus:ring-2 
+          className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-sm text-gray-800 dark:text-gray-200 
+                     placeholder:text-gray-400 dark:placeholder:text-gray-500 dark:bg-gray-900 focus:outline-none focus:ring-2 
                      focus:ring-indigo-500 focus:border-transparent resize-none
                      transition-shadow duration-200"
         />
@@ -169,8 +169,8 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-          <p className="text-sm text-red-700 font-medium">⚠️ {error}</p>
+        <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4">
+          <p className="text-sm text-red-700 dark:text-red-400 font-medium">⚠️ {error}</p>
         </div>
       )}
 

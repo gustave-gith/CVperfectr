@@ -1,7 +1,7 @@
 'use client';
 
 import React, { forwardRef, useEffect, useRef, useCallback } from 'react';
-import { CvData, Experience, Education } from '@/types/cv';
+import { CvData, Experience, Education, CvFormatting } from '@/types/cv';
 import { getLabels } from '@/lib/cvLabels';
 
 interface CvTemplateProps {
@@ -10,6 +10,7 @@ interface CvTemplateProps {
   fitOnePage?: boolean;
   isEditing?: boolean;
   onUpdate?: (data: CvData) => void;
+  formatting?: CvFormatting;
 }
 
 function EditableText({
@@ -18,12 +19,14 @@ function EditableText({
   isEditing,
   className = '',
   tag: Tag = 'span',
+  style,
 }: {
   value: string;
   onChange: (val: string) => void;
   isEditing: boolean;
   className?: string;
   tag?: any;
+  style?: React.CSSProperties;
 }) {
   return (
     <Tag
@@ -35,6 +38,7 @@ function EditableText({
           ? 'outline-dashed outline-2 outline-blue-300 rounded cursor-text focus:outline-blue-500 focus:outline-solid px-0.5 inline-block'
           : ''
       }`}
+      style={style}
     >
       {value}
     </Tag>
@@ -42,7 +46,7 @@ function EditableText({
 }
 
 export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
-  ({ data, className = '', fitOnePage = false, isEditing = false, onUpdate }, ref) => {
+  ({ data, className = '', fitOnePage = false, isEditing = false, onUpdate, formatting }, ref) => {
     const labels = getLabels(data.locale);
 
     const internalRef = useRef<HTMLDivElement>(null);
@@ -118,8 +122,17 @@ export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
       <div
         ref={setRefs}
         id="cv-template-executive"
-        className={`bg-white text-gray-900 max-w-3xl mx-auto p-10 print:p-8 print:max-w-none print:shadow-none ${className} ${fitOnePage ? 'fit-one-page' : ''}`}
-        style={{ fontFamily: '"Trebuchet MS", Calibri, sans-serif' }}
+        className={`bg-white text-gray-900 max-w-3xl mx-auto print:max-w-none print:shadow-none ${className} ${fitOnePage ? 'fit-one-page' : ''}`}
+        style={{
+          fontSize: `${formatting?.fontSize ?? 11}px`,
+          lineHeight: formatting?.lineHeight ?? 1.5,
+          padding: `${formatting?.marginV ?? 32}px ${formatting?.marginH ?? 32}px`,
+          fontFamily: formatting?.fontFamily === 'sans'
+            ? 'system-ui, sans-serif'
+            : formatting?.fontFamily === 'mono'
+            ? '"Courier New", monospace'
+            : '"Trebuchet MS", Calibri, sans-serif',
+        }}
       >
         <header className="text-center mb-8 border-b-2 border-gray-800 pb-6 print:border-gray-400">
           <EditableText
@@ -127,8 +140,17 @@ export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
             value={data.name}
             onChange={(val) => handleEdit('name', val)}
             isEditing={isEditing}
-            className="text-5xl font-black uppercase text-gray-900 mb-3 block"
+            className="text-5xl font-black uppercase text-gray-900 mb-2 block"
           />
+          {data.targetPosition && (
+            <EditableText
+              tag="p"
+              value={data.targetPosition}
+              onChange={(val) => handleEdit('targetPosition' as keyof CvData, val)}
+              isEditing={isEditing}
+              className="text-sm uppercase tracking-widest text-gray-500 font-semibold mb-3 block"
+            />
+          )}
           <div className="flex flex-wrap justify-center items-center gap-2 text-sm text-gray-700 font-medium">
             {data.email && <EditableText value={data.email} onChange={(val) => handleEdit('email', val)} isEditing={isEditing} />}
             {data.phone && <><span className="text-gray-400">·</span><EditableText value={data.phone} onChange={(val) => handleEdit('phone', val)} isEditing={isEditing} /></>}
@@ -138,7 +160,7 @@ export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
         </header>
 
         {data.summary && (
-          <section className="mb-6">
+          <section style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
             <h2 className="bg-gray-800 text-white px-3 py-1.5 text-sm font-bold uppercase tracking-wide mb-3 print:bg-gray-200 print:text-gray-900 print:text-xs block">
               {labels.summary}
             </h2>
@@ -153,7 +175,7 @@ export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
         )}
 
         {data.experience?.length > 0 && (
-          <section className="mb-6">
+          <section style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
             <h2 className="bg-gray-800 text-white px-3 py-1.5 text-sm font-bold uppercase tracking-wide mb-4 print:bg-gray-200 print:text-gray-900 print:text-xs block">
               {labels.experience}
             </h2>
@@ -205,7 +227,7 @@ export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
         )}
 
         {data.education?.length > 0 && (
-          <section className="mb-6">
+          <section style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
             <h2 className="bg-gray-800 text-white px-3 py-1.5 text-sm font-bold uppercase tracking-wide mb-3 print:bg-gray-200 print:text-gray-900 print:text-xs block">
               {labels.education}
             </h2>
@@ -236,7 +258,7 @@ export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
         )}
 
         {data.skills?.length > 0 && (
-          <section className="mb-6">
+          <section style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
             <h2 className="bg-gray-800 text-white px-3 py-1.5 text-sm font-bold uppercase tracking-wide mb-3 print:bg-gray-200 print:text-gray-900 print:text-xs block">
               {labels.skills}
             </h2>
@@ -257,7 +279,7 @@ export const CvTemplateExecutive = forwardRef<HTMLDivElement, CvTemplateProps>(
         )}
 
         {data.languages?.length > 0 && (
-          <section className="mb-6">
+          <section style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
             <h2 className="bg-gray-800 text-white px-3 py-1.5 text-sm font-bold uppercase tracking-wide mb-3 print:bg-gray-200 print:text-gray-900 print:text-xs block">
               {labels.languages}
             </h2>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { forwardRef, useEffect, useRef, useCallback } from 'react';
-import { CvData, Experience, Education } from '@/types/cv';
+import { CvData, Experience, Education, CvFormatting } from '@/types/cv';
 import { getLabels } from '@/lib/cvLabels';
 
 interface CvTemplateProps {
@@ -10,6 +10,7 @@ interface CvTemplateProps {
   fitOnePage?: boolean;
   isEditing?: boolean;
   onUpdate?: (data: CvData) => void;
+  formatting?: CvFormatting;
 }
 
 function EditableText({
@@ -18,12 +19,14 @@ function EditableText({
   isEditing,
   className = '',
   tag: Tag = 'span',
+  style,
 }: {
   value: string;
   onChange: (val: string) => void;
   isEditing: boolean;
   className?: string;
   tag?: any;
+  style?: React.CSSProperties;
 }) {
   return (
     <Tag
@@ -35,6 +38,7 @@ function EditableText({
           ? 'outline-dashed outline-2 outline-blue-300 rounded cursor-text focus:outline-blue-500 focus:outline-solid px-0.5 inline-block'
           : ''
       }`}
+      style={style}
     >
       {value}
     </Tag>
@@ -42,7 +46,7 @@ function EditableText({
 }
 
 export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
-  ({ data, className = '', fitOnePage = false, isEditing = false, onUpdate }, ref) => {
+  ({ data, className = '', fitOnePage = false, isEditing = false, onUpdate, formatting }, ref) => {
     const labels = getLabels(data.locale);
 
     const internalRef = useRef<HTMLDivElement>(null);
@@ -118,18 +122,37 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
       <div
         ref={setRefs}
         id="cv-template-classic"
-        className={`bg-white text-gray-900 max-w-3xl mx-auto p-12 print:p-8 print:max-w-none print:shadow-none ${className} ${fitOnePage ? 'fit-one-page' : ''}`}
-        style={{ fontFamily: 'Georgia, serif' }}
+        className={`bg-white text-gray-900 mx-auto print:max-w-none print:shadow-none ${className} ${fitOnePage ? 'fit-one-page' : ''}`}
+        style={{
+          fontSize: `${formatting?.fontSize ?? 11}px`,
+          lineHeight: formatting?.lineHeight ?? 1.5,
+          padding: `${formatting?.marginV ?? 32}px ${formatting?.marginH ?? 32}px`,
+          fontFamily: formatting?.fontFamily === 'sans'
+            ? 'system-ui, sans-serif'
+            : formatting?.fontFamily === 'mono'
+            ? '"Courier New", monospace'
+            : 'Georgia, serif',
+        }}
       >
-        <header className="mb-8">
+        <header className="mb-8" style={{ marginBottom: `${(formatting?.sectionSpacing ?? 16) * 1.5}px` }}>
           <EditableText
             tag="h1"
             value={data.name}
             onChange={(val) => handleEdit('name', val)}
             isEditing={isEditing}
-            className="text-4xl font-bold uppercase tracking-[0.15em] mb-4 text-[#1a1a2e] print:text-black block"
+            className="font-bold uppercase tracking-[0.15em] mb-2 text-[#1a1a2e] print:text-black block"
+            style={{ fontSize: '2.5em' }}
           />
-          <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+          {data.targetPosition && (
+            <EditableText
+              tag="p"
+              value={data.targetPosition}
+              onChange={(val) => handleEdit('targetPosition' as keyof CvData, val)}
+              isEditing={isEditing}
+              className="text-xs uppercase tracking-[0.2em] text-gray-500 font-medium mb-4 block"
+            />
+          )}
+          <div className="flex flex-wrap gap-4 text-gray-700 font-medium" style={{ fontSize: '0.85em' }}>
             {data.email && <EditableText value={data.email} onChange={(val) => handleEdit('email', val)} isEditing={isEditing} />}
             {data.phone && <EditableText value={data.phone} onChange={(val) => handleEdit('phone', val)} isEditing={isEditing} />}
             {data.location && <EditableText value={data.location} onChange={(val) => handleEdit('location', val)} isEditing={isEditing} />}
@@ -138,8 +161,8 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         </header>
 
         {data.summary && (
-          <section className="mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
+          <section className="mb-8" style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
+            <h2 className="font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4" style={{ fontSize: '0.9em' }}>
               {labels.summary}
             </h2>
             <EditableText
@@ -147,17 +170,17 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
               value={data.summary}
               onChange={(val) => handleEdit('summary', val)}
               isEditing={isEditing}
-              className="text-sm leading-relaxed text-gray-800 block"
+              className="text-gray-800 block"
             />
           </section>
         )}
 
         {data.experience?.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
+          <section className="mb-8" style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
+            <h2 className="font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4" style={{ fontSize: '0.9em' }}>
               {labels.experience}
             </h2>
-            <div className="space-y-6">
+            <div style={{ gap: `${(formatting?.sectionSpacing ?? 16) * 0.9}px`, display: 'flex', flexDirection: 'column' }}>
               {data.experience.map((exp, i) => (
                 <div key={i}>
                   <div className="flex justify-between items-baseline mb-1">
@@ -166,9 +189,9 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
                       value={exp.role}
                       onChange={(val) => handleEdit('experience', val, i, 'role')}
                       isEditing={isEditing}
-                      className="font-bold text-gray-900 text-base block"
+                      className="font-bold text-gray-900 block" style={{ fontSize: '1.1em' }}
                     />
-                    <span className="text-sm italic text-gray-500 whitespace-nowrap">
+                    <span className="italic text-gray-500 whitespace-nowrap" style={{ fontSize: '0.85em' }}>
                       <EditableText value={exp.startDate} onChange={(val) => handleEdit('experience', val, i, 'startDate')} isEditing={isEditing} />
                       {' – '}
                       <EditableText value={exp.endDate === 'Present' ? labels.present : exp.endDate} onChange={(val) => handleEdit('experience', val, i, 'endDate')} isEditing={isEditing} />
@@ -178,12 +201,12 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
                     value={exp.company}
                     onChange={(val) => handleEdit('experience', val, i, 'company')}
                     isEditing={isEditing}
-                    className="text-sm font-medium text-gray-700 mb-2 block"
+                    className="font-medium text-gray-700 mb-2 block" style={{ fontSize: '0.95em' }}
                   />
                   {exp.bullets?.length > 0 && (
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-1.5 list-none">
                       {exp.bullets.map((bullet, j) => (
-                        <li key={j} className="text-sm text-gray-800 flex gap-3 items-start">
+                        <li key={j} className="text-gray-800 flex gap-3 items-start" style={{ fontSize: '0.95em', marginBottom: '4px' }}>
                           <span className="text-gray-400 shrink-0">—</span>
                           <EditableText
                             tag="span"
@@ -203,11 +226,11 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         )}
 
         {data.education?.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
+          <section className="mb-8" style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
+            <h2 className="font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4" style={{ fontSize: '0.9em' }}>
               {labels.education}
             </h2>
-            <div className="space-y-4">
+            <div style={{ gap: `${(formatting?.sectionSpacing ?? 16) * 0.5}px`, display: 'flex', flexDirection: 'column' }}>
               {data.education.map((edu, i) => (
                 <div key={i} className="flex justify-between items-baseline">
                   <div>
@@ -216,15 +239,15 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
                       value={edu.institution}
                       onChange={(val) => handleEdit('education', val, i, 'institution')}
                       isEditing={isEditing}
-                      className="font-bold text-gray-900 text-sm block"
+                      className="font-bold text-gray-900 block" style={{ fontSize: '0.95em' }}
                     />
-                    <div className="text-sm text-gray-700">
+                    <div className="text-gray-700 mt-0.5" style={{ fontSize: '0.9em' }}>
                       <EditableText value={edu.degree} onChange={(val) => handleEdit('education', val, i, 'degree')} isEditing={isEditing} />
                       {edu.field ? ' in ' : ''}
                       {edu.field ? <EditableText value={edu.field} onChange={(val) => handleEdit('education', val, i, 'field')} isEditing={isEditing} /> : null}
                     </div>
                   </div>
-                  <span className="text-sm italic text-gray-500 whitespace-nowrap">
+                  <span className="italic text-gray-500 whitespace-nowrap" style={{ fontSize: '0.85em' }}>
                     <EditableText value={edu.graduationYear} onChange={(val) => handleEdit('education', val, i, 'graduationYear')} isEditing={isEditing} />
                   </span>
                 </div>
@@ -234,11 +257,11 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         )}
 
         {data.skills?.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
+          <section className="mb-8" style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
+            <h2 className="font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4" style={{ fontSize: '0.9em' }}>
               {labels.skills}
             </h2>
-            <p className="text-sm text-gray-800 leading-relaxed space-x-2">
+            <p className="text-gray-800 leading-relaxed space-x-2" style={{ fontSize: '0.95em' }}>
               {data.skills.map((skill, i) => (
                 <span key={i}>
                   <EditableText
@@ -254,11 +277,11 @@ export const CvTemplateClassic = forwardRef<HTMLDivElement, CvTemplateProps>(
         )}
 
         {data.languages?.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4">
+          <section className="mb-8" style={{ marginBottom: `${formatting?.sectionSpacing ?? 16}px` }}>
+            <h2 className="font-bold uppercase tracking-widest text-[#1a1a2e] print:text-black border-b border-gray-300 pb-2 mb-4" style={{ fontSize: '0.9em' }}>
               {labels.languages}
             </h2>
-            <p className="text-sm text-gray-800 space-x-2">
+            <p className="text-gray-800 space-x-2" style={{ fontSize: '0.95em' }}>
               {data.languages.map((lang, i) => (
                 <span key={i}>
                   <EditableText
