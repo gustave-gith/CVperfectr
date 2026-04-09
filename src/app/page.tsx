@@ -24,11 +24,75 @@ export default function HomePage() {
   const [fitOnePage, setFitOnePage] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formatting, setFormatting] = useState<CvFormatting>(DEFAULT_FORMATTING);
+  const [isDraggingCv, setIsDraggingCv] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const getPdfFilename = () =>
+    `CV-${cvData?.name?.replace(/\s+/g, '-') ?? 'optimized'}.pdf`;
+
+  const generatePdfBlob = useCallback(async (): Promise<Blob | null> => {
+    if (!cvRef.current) return null;
+    const html2pdf = (await import('html2pdf.js')).default;
+    const blob: Blob = await html2pdf()
+      .set({
+        margin: 0,
+        filename: getPdfFilename(),
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      })
+      .from(cvRef.current)
+      .outputPdf('blob');
+    return blob;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cvData]);
 
   const handlePrint = useReactToPrint({
     contentRef: cvRef,
-    documentTitle: `CV-${cvData?.name?.replace(/\s+/g, '-') ?? 'optimized'}`,
+    documentTitle: getPdfFilename().replace('.pdf', ''),
   });
+
+  const handleDownload = useCallback(async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const blob = await generatePdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = getPdfFilename();
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatePdfBlob]);
+
+  const handleDragStart = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    setIsDraggingCv(true);
+    // We must attach a placeholder during dragstart — blob generation is async.
+    // Most targets (desktop, Finder, Windows Explorer) support the DownloadURL format.
+    const placeholder = `application/pdf:${getPdfFilename()}:about:blank`;
+    e.dataTransfer.setData('DownloadURL', placeholder);
+
+    // For apps that accept blob drops (e.g. email clients, Slack),
+    // generate the real PDF and set it.
+    try {
+      const blob = await generatePdfBlob();
+      if (blob) {
+        e.dataTransfer.items.add(new File([blob], getPdfFilename(), { type: 'application/pdf' }));
+      }
+    } catch {
+      // Silent — placeholder will still be dragged
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatePdfBlob]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDraggingCv(false);
+  }, []);
 
   const handleSuccess = (data: CvData) => {
     setCvData(data);
@@ -61,8 +125,8 @@ export default function HomePage() {
                 <Button variant="secondary" size="sm" onClick={handleReset}>
                   ← Optimize Another
                 </Button>
-                <Button size="sm" onClick={() => handlePrint()}>
-                  ↓ Download PDF
+                <Button size="sm" onClick={handleDownload} disabled={isGeneratingPdf}>
+                  {isGeneratingPdf ? '⏳ Generating…' : '↓ Download PDF'}
                 </Button>
               </>
             )}
@@ -134,8 +198,8 @@ export default function HomePage() {
                 >
                   {isEditing ? '✅ Done editing' : '✏️ Edit CV'}
                 </Button>
-                <Button size="sm" onClick={() => handlePrint()}>
-                  ↓ Download as PDF
+                <Button size="sm" onClick={handleDownload} disabled={isGeneratingPdf}>
+                  {isGeneratingPdf ? '⏳ Generating…' : '↓ Download as PDF'}
                 </Button>
               </div>
             </div>
@@ -155,8 +219,29 @@ export default function HomePage() {
               selectedTemplate={selectedTemplate}
             />
 
-            {/* CV Preview Card */}
-            <div className="bg-white rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg overflow-hidden relative">
+            {/* CV Preview Card — draggable as a PDF file */}
+            <div
+              draggable
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              className={`group relative rounded-2xl border shadow-lg overflow-hidden cursor-grab active:cursor-grabbing
+                transition-all duration-200
+                ${isDraggingCv
+                  ? 'border-indigo-400 ring-2 ring-indigo-300 dark:ring-indigo-600 scale-[0.99]'
+                  : 'border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700'
+                } bg-white`}
+            >
+              {/* Drag hint badge */}
+              <div className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+                bg-indigo-50 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300
+                border border-indigo-200 dark:border-indigo-700
+                transition-all duration-200 print:hidden
+                ${isDraggingCv ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100'}`}
+              >
+                <span>✋</span>
+                <span>{isDraggingCv ? 'Drop to save PDF' : 'Drag to save PDF'}</span>
+              </div>
+
               {(() => {
                 const templateWrapperClass = fitOnePage 
                   ? 'print:text-[10.5px] print:[&_*]:leading-tight' 
