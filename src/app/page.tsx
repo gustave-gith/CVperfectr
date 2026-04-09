@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { UploadForm } from '@/components/upload-form/UploadForm';
 import { 
