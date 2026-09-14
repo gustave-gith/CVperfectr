@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { UploadForm } from '@/components/upload-form/UploadForm';
 import { 
@@ -27,8 +27,14 @@ export default function HomePage() {
   const [isDraggingCv, setIsDraggingCv] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  const getPdfFilename = () =>
-    `CV-${cvData?.name?.replace(/\s+/g, '-') ?? 'optimized'}.pdf`;
+  // Pre-generated PDF blob for instant download & native Drag & Drop
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isPdfReady, setIsPdfReady] = useState(false);
+
+  const getPdfFilename = useCallback(() => {
+    return `CV-${cvData?.name?.replace(/\s+/g, '-') ?? 'optimise'}.pdf`;
+  }, [cvData?.name]);
 
   const generatePdfBlob = useCallback(async (): Promise<Blob | null> => {
     if (!cvRef.current) return null;
@@ -44,10 +50,45 @@ export default function HomePage() {
       .from(cvRef.current)
       .outputPdf('blob');
     return blob;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cvData]);
+  }, [getPdfFilename]);
 
-  const handlePrint = useReactToPrint({
+  // Pre-generate PDF Blob whenever CV or formatting changes
+  useEffect(() => {
+    if (appState !== 'result' || !cvData || isEditing) return;
+
+    let isCurrent = true;
+    setIsPdfReady(false);
+
+    const timer = setTimeout(async () => {
+      try {
+        const blob = await generatePdfBlob();
+        if (blob && isCurrent) {
+          setPdfBlob(blob);
+          setPdfBlobUrl((prevUrl) => {
+            if (prevUrl) URL.revokeObjectURL(prevUrl);
+            return URL.createObjectURL(blob);
+          });
+          setIsPdfReady(true);
+        }
+      } catch (err) {
+        console.error('Erreur de pré-génération du PDF:', err);
+      }
+    }, 600);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [appState, cvData, selectedTemplate, fitOnePage, formatting, isEditing, generatePdfBlob]);
+
+  // Clean up object URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
+
+  useReactToPrint({
     contentRef: cvRef,
     documentTitle: getPdfFilename().replace('.pdf', ''),
   });
@@ -55,40 +96,53 @@ export default function HomePage() {
   const handleDownload = useCallback(async () => {
     setIsGeneratingPdf(true);
     try {
-      const blob = await generatePdfBlob();
+      let blob = pdfBlob;
+      if (!blob) {
+        blob = await generatePdfBlob();
+      }
       if (!blob) return;
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = getPdfFilename();
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } finally {
       setIsGeneratingPdf(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatePdfBlob]);
+  }, [pdfBlob, generatePdfBlob, getPdfFilename]);
 
-  const handleDragStart = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+  // Real synchronous HTML5 Drag & Drop for generated PDF
+  const handleDragStart = useCallback((e: React.DragEvent<HTMLElement>) => {
     e.dataTransfer.effectAllowed = 'copy';
     setIsDraggingCv(true);
-    // We must attach a placeholder during dragstart — blob generation is async.
-    // Most targets (desktop, Finder, Windows Explorer) support the DownloadURL format.
-    const placeholder = `application/pdf:${getPdfFilename()}:about:blank`;
-    e.dataTransfer.setData('DownloadURL', placeholder);
 
-    // For apps that accept blob drops (e.g. email clients, Slack),
-    // generate the real PDF and set it.
-    try {
-      const blob = await generatePdfBlob();
-      if (blob) {
-        e.dataTransfer.items.add(new File([blob], getPdfFilename(), { type: 'application/pdf' }));
+    const filename = getPdfFilename();
+
+    if (pdfBlobUrl && pdfBlob) {
+      // 1. Native Chrome/Edge Drag-to-Desktop format:
+      // "application/pdf:filename.pdf:URL"
+      e.dataTransfer.setData('DownloadURL', `application/pdf:${filename}:${pdfBlobUrl}`);
+
+      // 2. Add File to DataTransferItemList for apps like Slack, Discord, Mail
+      try {
+        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+        e.dataTransfer.items.add(file);
+      } catch {
+        // Fallback silently if browser restricts items.add
       }
-    } catch {
-      // Silent — placeholder will still be dragged
+
+      // 3. Fallback URL formats
+      e.dataTransfer.setData('text/uri-list', pdfBlobUrl);
+      e.dataTransfer.setData('text/plain', filename);
+    } else {
+      // Fallback hint
+      e.dataTransfer.setData('text/plain', filename);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatePdfBlob]);
+  }, [pdfBlobUrl, pdfBlob, getPdfFilename]);
 
   const handleDragEnd = useCallback(() => {
     setIsDraggingCv(false);
@@ -103,19 +157,23 @@ export default function HomePage() {
   const handleReset = () => {
     setAppState('idle');
     setCvData(null);
+    setPdfBlob(null);
+    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    setPdfBlobUrl(null);
+    setIsPdfReady(false);
   };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 dark:from-gray-950 via-white dark:via-gray-900 to-purple-50 dark:to-indigo-950/20">
       {/* Navbar */}
-      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm sticky top-0 z-10">
+      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">⚡</span>
             <span className="font-bold text-gray-900 dark:text-white text-lg">CVperfectr</span>
             <span className="text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 
                            rounded-full font-medium ml-1">
-              AI-Powered
+              IA Future-Proof
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -123,10 +181,10 @@ export default function HomePage() {
             {appState === 'result' && (
               <>
                 <Button variant="secondary" size="sm" onClick={handleReset}>
-                  ← Optimize Another
+                  ← Optimiser un autre CV
                 </Button>
                 <Button size="sm" onClick={handleDownload} disabled={isGeneratingPdf}>
-                  {isGeneratingPdf ? '⏳ Generating…' : '↓ Download PDF'}
+                  {isGeneratingPdf ? '⏳ Préparation…' : '↓ Télécharger le PDF'}
                 </Button>
               </>
             )}
@@ -140,20 +198,20 @@ export default function HomePage() {
             {/* Hero */}
             <div className="text-center mb-10">
               <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
-                Beat the ATS. Land the Interview.
+                Passez les filtres ATS. Décrochez l'entretien.
               </h1>
-              <p className="text-gray-500 text-lg">
-                Upload your CV and paste a job description. Our AI rewrites your
-                CV to match the exact keywords recruiters and ATS systems look for.
+              <p className="text-gray-500 dark:text-gray-400 text-lg">
+                Déposez votre CV et collez l'offre d'emploi. Notre IA reformule votre CV
+                avec un ton humain, naturel et percutant, parfaitement calibré pour les recruteurs.
               </p>
             </div>
 
             {/* How it works */}
             <div className="grid grid-cols-3 gap-4 mb-10">
               {[
-                { step: '1', icon: '📄', title: 'Upload CV', desc: 'Your PDF stays private' },
-                { step: '2', icon: '🤖', title: 'AI Analyzes', desc: 'Gemini rewrites content' },
-                { step: '3', icon: '✅', title: 'Download', desc: 'ATS-optimized PDF' },
+                { step: '1', icon: '📄', title: 'Déposez votre CV', desc: 'Glisser-déposer de votre PDF' },
+                { step: '2', icon: '🤖', title: 'Réécriture IA', desc: 'Phrases naturelles & ATS' },
+                { step: '3', icon: '📥', title: 'Export Drag & Drop', desc: 'Glissez le PDF sur le bureau' },
               ].map(({ step, icon, title, desc }) => (
                 <div key={step} className="text-center p-4 rounded-xl bg-white dark:bg-gray-900 
                                            border border-gray-200 dark:border-gray-800 shadow-sm">
@@ -172,35 +230,73 @@ export default function HomePage() {
         ) : (
           <div>
             {/* Result Header */}
-            <div className="flex items-center justify-between mb-6 print-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 print-hidden">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  ✅ Your optimized CV is ready
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>✅</span> Votre CV optimisé est prêt
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">
-                  Review the content below, then download as PDF
+                  Vérifiez le contenu ci-dessous, personnalisez le style et exportez votre PDF.
                 </p>
                 {isEditing && (
-                  <p className="text-xs text-blue-600 mt-2 print:hidden">
-                    ✏️ Click any text on the CV to edit it. 
-                    Click "Done editing" when finished.
+                  <p className="text-xs text-blue-600 font-medium mt-2">
+                    ✏️ Cliquez directement sur n'importe quel texte du CV pour le modifier. Cliquez sur "Terminer l'édition" quand vous avez fini.
                   </p>
                 )}
               </div>
               <div className="flex items-center gap-3">
                 <Button variant="secondary" size="sm" onClick={handleReset}>
-                  ← Start over
+                  ← Recommencer
                 </Button>
                 <Button
                   variant={isEditing ? 'primary' : 'secondary'}
                   size="sm"
                   onClick={() => setIsEditing(!isEditing)}
                 >
-                  {isEditing ? '✅ Done editing' : '✏️ Edit CV'}
+                  {isEditing ? '✅ Terminer l\'édition' : '✏️ Modifier le CV'}
                 </Button>
                 <Button size="sm" onClick={handleDownload} disabled={isGeneratingPdf}>
-                  {isGeneratingPdf ? '⏳ Generating…' : '↓ Download as PDF'}
+                  {isGeneratingPdf ? '⏳ Génération…' : '↓ Télécharger PDF'}
                 </Button>
+              </div>
+            </div>
+
+            {/* Dedicated Drag & Drop PDF Banner */}
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 border border-indigo-200/80 dark:border-indigo-800/60 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 print-hidden">
+              <div className="flex items-center gap-3 text-left">
+                <div
+                  draggable={isPdfReady}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all select-none shadow-sm cursor-grab active:cursor-grabbing
+                    ${isPdfReady 
+                      ? 'bg-white dark:bg-gray-900 border-indigo-500/60 hover:border-indigo-600 hover:shadow-indigo-500/20 scale-100 hover:scale-[1.02]' 
+                      : 'bg-gray-100 dark:bg-gray-800 border-dashed border-gray-300 dark:border-gray-700 opacity-70 cursor-wait'
+                    }
+                  `}
+                  title="Glissez ce badge directement sur votre bureau, dans un dossier ou dans un email !"
+                >
+                  <span className="text-3xl animate-bounce">📄</span>
+                  <div>
+                    <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                      <span>{getPdfFilename()}</span>
+                      <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-semibold px-2 py-0.5 rounded-full">
+                        {isPdfReady ? 'Glisser-Déposer actif' : 'Préparation du PDF…'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {isPdfReady 
+                        ? '👉 Glissez vers votre bureau ou un dossier pour récupérer le PDF'
+                        : 'Calcul du PDF en cours...'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                <span>💡</span>
+                <span>Vous pouvez aussi glisser la feuille du CV directement !</span>
               </div>
             </div>
 
@@ -221,25 +317,24 @@ export default function HomePage() {
 
             {/* CV Preview Card — draggable as a PDF file */}
             <div
-              draggable
+              draggable={isPdfReady}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               className={`group relative rounded-2xl border shadow-lg overflow-hidden cursor-grab active:cursor-grabbing
                 transition-all duration-200
                 ${isDraggingCv
-                  ? 'border-indigo-400 ring-2 ring-indigo-300 dark:ring-indigo-600 scale-[0.99]'
+                  ? 'border-indigo-400 ring-4 ring-indigo-300 dark:ring-indigo-600 scale-[0.99]'
                   : 'border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700'
                 } bg-white`}
             >
               {/* Drag hint badge */}
-              <div className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-                bg-indigo-50 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300
-                border border-indigo-200 dark:border-indigo-700
+              <div className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                bg-indigo-600 text-white shadow-md
                 transition-all duration-200 print:hidden
-                ${isDraggingCv ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100'}`}
+                ${isDraggingCv ? 'opacity-100 scale-105' : 'opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100'}`}
               >
                 <span>✋</span>
-                <span>{isDraggingCv ? 'Drop to save PDF' : 'Drag to save PDF'}</span>
+                <span>{isDraggingCv ? 'Relâchez pour déposer le PDF' : 'Glissez pour enregistrer le PDF'}</span>
               </div>
 
               {(() => {

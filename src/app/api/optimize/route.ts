@@ -12,30 +12,44 @@ export async function POST(request: NextRequest): Promise<NextResponse<OptimizeR
     const jobDescription = formData.get('jobDescription') as string | null;
     const language = (formData.get('language') as string) || 'English';
 
+    // Optional user-provided API key & model
+    const clientApiKey = (formData.get('apiKey') as string | null) ||
+      request.headers.get('x-gemini-api-key') ||
+      undefined;
+
+    const clientModel = (formData.get('model') as string | null) ||
+      request.headers.get('x-gemini-model') ||
+      undefined;
+
     if (!pdfFile) {
       return NextResponse.json(
-        { success: false, error: 'No PDF file provided' },
+        { success: false, error: 'Aucun fichier PDF fourni. Veuillez déposer votre CV.' },
         { status: 400 }
       );
     }
 
     if (!jobDescription || jobDescription.trim().length < 50) {
       return NextResponse.json(
-        { success: false, error: 'Job description must be at least 50 characters' },
+        { success: false, error: 'La description du poste doit comporter au moins 50 caractères.' },
         { status: 400 }
       );
     }
 
-    if (pdfFile.type !== 'application/pdf') {
+    const isPdf = 
+      pdfFile.type === 'application/pdf' || 
+      pdfFile.type === 'application/x-pdf' || 
+      pdfFile.name.toLowerCase().endsWith('.pdf');
+
+    if (!isPdf) {
       return NextResponse.json(
-        { success: false, error: 'File must be a PDF' },
+        { success: false, error: 'Le fichier déposé doit être un fichier PDF.' },
         { status: 400 }
       );
     }
 
     if (pdfFile.size > 5 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, error: 'PDF must be smaller than 5MB' },
+        { success: false, error: 'Le fichier PDF ne doit pas dépasser 5 Mo.' },
         { status: 400 }
       );
     }
@@ -49,13 +63,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<OptimizeR
 
     if (cvText.trim().length < 100) {
       return NextResponse.json(
-        { success: false, error: 'Could not extract enough text from PDF. Make sure it is not a scanned image.' },
+        { success: false, error: 'Impossible d\'extraire suffisamment de texte du PDF. Vérifiez qu\'il ne s\'agit pas d\'une image scannée.' },
         { status: 422 }
       );
     }
 
-    // Step 2: Send to Gemini
-    const optimizedCv = await optimizeCvWithGemini(cvText, jobDescription.trim(), language);
+    // Step 2: Send to Gemini with futureproof model cascade & optional client API key
+    const optimizedCv = await optimizeCvWithGemini(
+      cvText,
+      jobDescription.trim(),
+      language,
+      clientApiKey,
+      clientModel
+    );
 
     return NextResponse.json({ success: true, data: optimizedCv });
 
@@ -64,7 +84,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<OptimizeR
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+        error: error instanceof Error ? error.message : 'Une erreur inattendue est survenue lors de l\'optimisation.'
       },
       { status: 500 }
     );
