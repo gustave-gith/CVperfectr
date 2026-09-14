@@ -270,18 +270,65 @@ export function UploadForm({ onSuccess }: UploadFormProps) {
         )}
       </div>
 
-      {/* Error display */}
+      {/* Error display with inline secure key input */}
       {error && (
-        <div className="rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4 space-y-3">
-          <p className="text-sm text-red-700 dark:text-red-400 font-medium">⚠️ {error}</p>
-          {isApiKeyError && !showApiKeyInput && (
-            <button
-              type="button"
-              onClick={() => setShowApiKeyInput(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors"
-            >
-              🔑 Saisir ma clé API Gemini maintenant
-            </button>
+        <div className="rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 p-5 space-y-4 shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                {isApiKeyError ? 'Clé API Gemini requise' : 'Information'}
+              </h4>
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                {error}
+              </p>
+            </div>
+          </div>
+
+          {isApiKeyError && (
+            <div className="space-y-3 pt-2 border-t border-amber-200 dark:border-amber-800/60">
+              <label className="block text-xs font-semibold text-amber-900 dark:text-amber-200">
+                Collez votre clé API Gemini personnelle :
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="flex-1 rounded-lg border border-amber-300 dark:border-amber-700 px-3.5 py-2.5 text-xs text-gray-900 dark:text-white bg-white dark:bg-gray-900 focus:ring-2 focus:ring-amber-500 outline-none shadow-inner"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    if (apiKey.trim()) {
+                      setError(null);
+                      // Trigger submit with the newly typed key
+                      setTimeout(() => {
+                        const form = (e.target as HTMLElement).closest('form');
+                        form?.requestSubmit();
+                      }, 50);
+                    }
+                  }}
+                  disabled={!apiKey.trim()}
+                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-all shadow shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  🔒 Enregistrer & Lancer l'IA ✨
+                </button>
+              </div>
+
+              {/* Anti-leak security assurance */}
+              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 p-3 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <span>🛡️</span>
+                  <span>Garantie Zéro Fuite (Anti-Leak)</span>
+                </p>
+                <p className="leading-relaxed">
+                  Votre clé reste <strong>strictement stockée dans le navigateur de votre appareil</strong> (via <code>localStorage</code>). Elle n'est visible par aucun autre visiteur de votre site Vercel et n'est jamais sauvegardée sur un serveur distant.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}

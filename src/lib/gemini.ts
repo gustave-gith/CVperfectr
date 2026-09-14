@@ -11,6 +11,14 @@ const FALLBACK_MODELS = [
   'gemini-1.5-flash',
 ].filter(Boolean) as string[];
 
+/**
+ * Sanitizes any message so that the API key is never exposed or logged.
+ */
+function maskKey(text: string, key?: string): string {
+  if (!key || key.length < 8) return text;
+  return text.split(key).join('[CLE_API_PROTEGEE]');
+}
+
 function getSystemPrompt(language: string): string {
   const isFrench = language.toLowerCase().includes('french') || language.toLowerCase().includes('français') || language.toLowerCase() === 'fr';
 
@@ -283,9 +291,9 @@ OPTIMIZATION INSTRUCTIONS:
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = maskKey(await response.text(), apiKey);
         if (response.status === 401 || response.status === 403) {
-          throw new Error('Clé API Gemini invalide ou expirée. Veuillez vérifier votre clé API dans .env.local ou dans les options.');
+          throw new Error('Clé API Gemini invalide ou expirée. Veuillez vérifier votre clé API.');
         }
         if (response.status === 429) {
           throw new Error('Quota Gemini dépassé (429). Veuillez patienter quelques instants ou utiliser une autre clé API.');
@@ -321,7 +329,8 @@ OPTIMIZATION INSTRUCTIONS:
       if (err instanceof SyntaxError) {
         throw new Error('La réponse de l\'IA n\'a pas pu être convertie en JSON valide. Veuillez réessayer.');
       }
-      lastError = err instanceof Error ? err : new Error(String(err));
+      const rawErr = err instanceof Error ? err.message : String(err);
+      lastError = new Error(maskKey(rawErr, apiKey));
 
       // Don't retry if it's an auth error (all models will fail with invalid key)
       if (lastError.message.includes('invalide ou expirée')) {
